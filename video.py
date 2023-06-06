@@ -13,6 +13,7 @@ from darknet import Darknet
 import pickle as pkl
 import pandas as pd
 import random
+from collections import defaultdict
 
 
 class_name = "bottle"
@@ -46,7 +47,7 @@ def arg_parse():
 args = arg_parse()
 batch_size = int(args.bs)
 confidence = float(args.confidence)
-nms_thesh = float(args.nms_thresh)
+nms_thresh = float(args.nms_thresh)
 start = 0
 CUDA = torch.cuda.is_available()
 
@@ -101,12 +102,36 @@ object_count = 0
 prev_count = 0
 total_count = 0
 
-while cap.isOpened():
-    ret, frame = cap.read()
+total_object_count = defaultdict(int)
 
+h = 500
+w = 300
+
+cnt_up =0 
+cnt_down=0
+
+
+#Substractor de fondo
+fgbg = cv2.createBackgroundSubtractorMOG2(detectShadows = True)
+
+#Elementos estructurantes para filtros morfoogicos
+kernelOp = np.ones((3,3),np.uint8)
+kernelOp2 = np.ones((5,5),np.uint8)
+kernelCl = np.ones((11,11),np.uint8)
+
+#Substractor de fondo
+fgbg = cv2.createBackgroundSubtractorMOG2(detectShadows = False)
+
+while cap.isOpened():
+    h = 100
+    w = 100
+    frame2 = h*w
+    
+    ret, frame2 = cap.read()
+    
     if ret:
-        img = prep_image(frame, inp_dim)
-        im_dim = frame.shape[1], frame.shape[0]
+        img = prep_image(frame2, inp_dim)
+        im_dim = frame2.shape[1], frame2.shape[0]
         im_dim = torch.FloatTensor(im_dim).repeat(1, 2)
 
         if CUDA:
@@ -115,12 +140,12 @@ while cap.isOpened():
 
         with torch.no_grad():
             output = model(Variable(img), CUDA)
-        output = write_results(output, confidence, num_classes, nms_conf=nms_thesh)
+        output = write_results(output, confidence, num_classes, nms_conf=nms_thresh)
 
         if type(output) == int:
             frames += 1
             print("FPS of the video is {:5.4f}".format(frames / (time.time() - start)))
-            cv2.imshow("frame", frame)
+            cv2.imshow("frame", frame2)
             key = cv2.waitKey(1)
             if key & 0xFF == ord('q'):
                 break
@@ -137,28 +162,56 @@ while cap.isOpened():
         for i in range(output.shape[0]):
             output[i, [1, 3]] = torch.clamp(output[i, [1, 3]], 0.0, im_dim[i, 0])
             output[i, [2, 4]] = torch.clamp(output[i, [2, 4]], 0.0, im_dim[i, 1])
-
+        
+        # Count the number of objects
         # Count the number of objects
         object_count = 0
+        objects_in_frame = {}
+        main_cnt =0
+
 
         for i in range(output.shape[0]):
             class_index = int(output[i, -1])
             if classes[class_index] == class_name:
-                object_count += 1
+                bbox = output[i, 1:5].cpu().detach().numpy()
+                bbox = [int(x) for x in bbox]
+                objects_in_frame[tuple(bbox)] = True                            #The coordinates of the bounding box are stored as a tuple in the dictionary
 
-        total_count += object_count - prev_count
-        prev_count = object_count
+        # Check if any previously counted objects are still in the frame
+        objects_to_remove = []
+        if class_name in total_object_count:
+            for obj in total_object_count[class_name]:
+                if obj not in objects_in_frame:
+                    objects_to_remove.append(obj)
+                    main_cnt += len(objects_to_remove)                          #The objects which have been detected but aren't in the frame are added to the main_cnt
 
-        list(map(lambda x: write(x, frame), output))
+        # Count the objects that are newly detected and not in the previous count
+        new_objects = [obj for obj in objects_in_frame if obj not in total_object_count.get(class_name, {})]
+        object_count += len(new_objects)
+        total_object_count[class_name] = objects_in_frame
+        
 
-        cv2.putText(frame, f"Total {class_name} objects: {total_count}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1,
+        # Remove the objects that are still in the frame from the previous count
+        if class_name in total_object_count:
+            for obj in objects_to_remove:
+                total_object_count[class_name].pop(obj, None)
+                main_cnt += len(total_object_count.get(class_name, {}))
+
+
+        sum_total = len(total_object_count.get(class_name, {}))
+        main_cnt = len(objects_to_remove) + len(total_object_count.get(class_name, {}))
+        list(map(lambda x: write(x, frame2), output))
+
+        cv2.putText(frame2, f"Total {class_name} objects until now: {main_cnt}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1,
                     (0, 255, 0), 2)
-        cv2.imshow("frame", frame)
+
+        cv2.imshow("frame", frame2)
         key = cv2.waitKey(1)
         if key & 0xFF == ord('q'):
             break
 
         frames += 1
         print("FPS of the video is {:5.2f}".format(frames / (time.time() - start)))
+    
     else:
         break
