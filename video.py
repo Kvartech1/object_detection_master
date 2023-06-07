@@ -104,24 +104,15 @@ total_count = 0
 
 total_object_count = defaultdict(int)
 
-h = 500
-w = 300
+sum_2 =0
+check = False
 
-cnt_up =0 
-cnt_down=0
+sum_total=0
+main_cnt =0
+temp=0
+temp_p=0
 
-
-#Substractor de fondo
-fgbg = cv2.createBackgroundSubtractorMOG2(detectShadows = True)
-
-#Elementos estructurantes para filtros morfoogicos
-kernelOp = np.ones((3,3),np.uint8)
-kernelOp2 = np.ones((5,5),np.uint8)
-kernelCl = np.ones((11,11),np.uint8)
-
-#Substractor de fondo
-fgbg = cv2.createBackgroundSubtractorMOG2(detectShadows = False)
-
+objects_in_frame_prev = 0
 while cap.isOpened():
     h = 100
     w = 100
@@ -168,14 +159,23 @@ while cap.isOpened():
         object_count = 0
         objects_in_frame = {}
         main_cnt =0
-
-
+   
+        #print("AA")
         for i in range(output.shape[0]):
             class_index = int(output[i, -1])
             if classes[class_index] == class_name:
                 bbox = output[i, 1:5].cpu().detach().numpy()
                 bbox = [int(x) for x in bbox]
                 objects_in_frame[tuple(bbox)] = True                            #The coordinates of the bounding box are stored as a tuple in the dictionary
+                
+        print("OBJECT IN FRAME:"+str(len(objects_in_frame)))
+        print("OBJECT IN PREV FRAME:"+str(objects_in_frame_prev))
+        
+        if objects_in_frame_prev == len(objects_in_frame):
+            check = False
+        else:
+            check =True
+            objects_in_frame_prev = len(objects_in_frame)
 
         # Check if any previously counted objects are still in the frame
         objects_to_remove = []
@@ -184,25 +184,37 @@ while cap.isOpened():
                 if obj not in objects_in_frame:
                     objects_to_remove.append(obj)
                     main_cnt += len(objects_to_remove)                          #The objects which have been detected but aren't in the frame are added to the main_cnt
+                    
+  
+                    #print(main_cnt)
+                    #sum_total += main_cnt
 
         # Count the objects that are newly detected and not in the previous count
         new_objects = [obj for obj in objects_in_frame if obj not in total_object_count.get(class_name, {})]
+        new_objects += objects_to_remove
+
+        #Update the object count and the total object count
+        sum_2 += len(new_objects)
         object_count += len(new_objects)
-        total_object_count[class_name] = objects_in_frame
-        
+        total_object_count[class_name] = objects_in_frame 
+        #print(object_count)
 
         # Remove the objects that are still in the frame from the previous count
         if class_name in total_object_count:
             for obj in objects_to_remove:
                 total_object_count[class_name].pop(obj, None)
                 main_cnt += len(total_object_count.get(class_name, {}))
+                #check = False
 
 
-        sum_total = len(total_object_count.get(class_name, {}))
-        main_cnt = len(objects_to_remove) + len(total_object_count.get(class_name, {}))
+        #sum_total += object_count 
+        sum_total = len(total_object_count.get(class_name, {})) 
+        sum_2 = sum_total 
+        temp_p= sum_2
+        #main_cnt = len(objects_to_remove) + len(total_object_count.get(class_name, {}))
         list(map(lambda x: write(x, frame2), output))
 
-        cv2.putText(frame2, f"Total {class_name} objects until now: {main_cnt}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1,
+        cv2.putText(frame2, f"Total {class_name} objects until now: {temp}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1,
                     (0, 255, 0), 2)
 
         cv2.imshow("frame", frame2)
@@ -211,7 +223,17 @@ while cap.isOpened():
             break
 
         frames += 1
-        print("FPS of the video is {:5.2f}".format(frames / (time.time() - start)))
+       # print("FPS of the video is {:5.2f}".format(frames / (time.time() - start)))
+
     
     else:
         break
+    
+    if check:
+        temp += objects_in_frame_prev 
+        check = False
+
+    main_cnt=0
+    #print("count:")
+    #print(temp)
+    
