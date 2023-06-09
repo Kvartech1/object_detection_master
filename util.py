@@ -7,6 +7,17 @@ from torch.autograd import Variable
 import numpy as np
 import cv2 
 
+
+def count_classes(class_names_path):
+    #Load the class names
+    with open(class_names_path, 'r') as file:
+        class_names = file.readlines()
+
+    #Count the number of classes
+    num_classes = len(class_names)
+    return num_classes
+
+
 def unique(tensor):
     tensor_np = tensor.cpu().numpy()
     unique_np = np.unique(tensor_np)
