@@ -7,24 +7,52 @@ from torch.autograd import Variable
 import numpy as np
 import cv2 
 from torch.utils.data import Dataset
+from PIL import Image
+import os
 
-
+#This class should be edited based on our custom dataset
 class CustomDataset(Dataset):
-    def __init__(self, dataset_path, transform=None):
+    def __init__(self, dataset_path,annotations_path,transform=None):
         self.dataset_path = dataset_path
+        self.annotations_path = annotations_path
         self.transform = transform
+        self.image_filenames = [filename for filename in os.listdir(dataset_path) if filename.endswith('.jpg')]
         #Implement any other necessary initialization steps here based on the custom dataset
 
     def __len__(self):
         #Return the total number of samples in the dataset
-        pass
+        return len(self.image_filenames)
 
     def __getitem__(self, index):
         #Retrieve and return a sample from the datset at the given index
-        pass 
+        image_id = os.path.splitext(self.image_filenames[index])[0]
+        image_path = os.path.join(self.annotations_path, f'{image_id}.txt')
+        
+        #Open the image
+        image = Image.open(image_path).convert('RGB')
+
+        #Open the annotations file and read the lines
+        with open(annotation_path, 'r') as f:
+            lines = f.readlines()
+
+        #Process the lines to get the class labels and bounding boxes
+        targets = []
+        for line in lines:
+            line = line.strip().split()
+            class_index = int(line[0])
+            x_center, y_center, width, height = map(float, line[1:])
+            targets.append([class_index, x_center, y_center, width, height])
+
+        targets = torch.tensor(targets)
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, targets
+
         
 
-def count_classes(class_names_path):
+def count_classes(class_names_path): 
     #Load the class names
     with open(class_names_path, 'r') as file:
         class_names = file.readlines()
