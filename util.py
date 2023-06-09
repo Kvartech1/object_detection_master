@@ -6,7 +6,23 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import numpy as np
 import cv2 
+from torch.utils.data import Dataset
 
+
+class CustomDataset(Dataset):
+    def __init__(self, dataset_path, transform=None):
+        self.dataset_path = dataset_path
+        self.transform = transform
+        #Implement any other necessary initialization steps here based on the custom dataset
+
+    def __len__(self):
+        #Return the total number of samples in the dataset
+        pass
+
+    def __getitem__(self, index):
+        #Retrieve and return a sample from the datset at the given index
+        pass 
+        
 
 def count_classes(class_names_path):
     #Load the class names
