@@ -18,12 +18,13 @@ datagen = ImageDataGenerator(
     width_shift_range=0.2,
     height_shift_range=0.2,
     shear_range=0.2,
+    zoom_range=0,
     horizontal_flip=True,
     fill_mode='nearest'
 )
 output_height = 416
 output_width = 416
-img = load_img('C:/Users/admin/Desktop/Machine Learning/object_detection_master/bottle.jpg', target_size = (output_height,output_width))          #File path of image which is to be loaded
+img = load_img('file path to the image you want to augment', target_size = (output_height,output_width))          #File path of image which is to be loaded
 x = img_to_array(img)       #This is a numpy array with shape ()
 x = x.reshape((1,) + x.shape)       #This is a numpy array with shape(1, )
 
@@ -32,5 +33,5 @@ x = x.reshape((1,) + x.shape)       #This is a numpy array with shape(1, )
 i=0
 for batch in datagen.flow(x, batch_size=1, save_to_dir='preview', save_prefix='bottle', save_format='jpeg'):
     i += 1
-    if i>20:
+    if i>1000:
         break               #Or else the generator would loop indefinitely
