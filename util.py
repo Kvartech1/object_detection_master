@@ -9,12 +9,14 @@ import cv2
 from torch.utils.data import Dataset
 from PIL import Image
 import os
+import xml.etree.ElementTree as ET
 
 #This class should be edited based on our custom dataset
 class CustomDataset(Dataset):
-    def __init__(self, dataset_path,annotations_path,transform=None):
+    def __init__(self, dataset_path,annotations_path, class_names, transform=None):
         self.dataset_path = dataset_path
         self.annotations_path = annotations_path
+        self.class_names = class_names
         self.transform = transform
         self.image_filenames = [filename for filename in os.listdir(dataset_path) if filename.endswith('.jpg')]
         #Implement any other necessary initialization steps here based on the custom dataset
@@ -26,7 +28,8 @@ class CustomDataset(Dataset):
     def __getitem__(self, index):
         #Retrieve and return a sample from the datset at the given index
         image_id = os.path.splitext(self.image_filenames[index])[0]
-        image_path = os.path.join(self.annotations_path, f'{image_id}.txt')
+        image_path = os.path.join(self.dataset_path, self.image_filenames[index])
+        annotation_path = os.path.join(self.annotations_path, f'{image_id}.txt')
         
         #Open the image
         image = Image.open(image_path).convert('RGB')
@@ -39,7 +42,8 @@ class CustomDataset(Dataset):
         targets = []
         for line in lines:
             line = line.strip().split()
-            class_index = int(line[0])
+            class_name = line[0]
+            class_index = self.class_names.index(class_name)
             x_center, y_center, width, height = map(float, line[1:])
             targets.append([class_index, x_center, y_center, width, height])
 
@@ -50,8 +54,55 @@ class CustomDataset(Dataset):
 
         return image, targets
 
-        
+#This function will generate yolo annotations
+def generate_yolo_annotations(self):
+    for image_filename in self.image_filenames:
+        image_id = os.path.splitext(image_filename)[0]
+        annotation_path = os.path.join(self.annotations_path, f'{image_id}.txt')
 
+        with open(annotation_path, 'w') as f:
+            #Processing the image annotations
+            #Assuming annotations are stored as a list of dictionaries
+            annotations = get_annotations_for_image(image_id)   #Replace with your annotation retrieval logic
+            image_path = os.path.join(self.dataset_path, f'{image_id}.jpg')
+            image = Image.open(image_path)
+            image_width, image_height = image.size 
+
+            for annotation in annotations:
+                class_name = annotation['class']
+                class_index = self.class_names.index(class_name)
+                x, y, width, height = annotation['bbox']
+                x_center = (x + width / 2) / image_width
+                y_center = (y + height / 2) / image_height
+                normalized_width = width / image_width 
+                normalized_height = height / image_height 
+
+                line = f'{class_index} {x_center} {y_center} {normalized_width} {normalized_height}\n'
+                f.write(line)
+
+def get_annotations_for_image(image_id):
+    annotations = []
+    annotation_path = os.path.join(annotations_dir, f'{image_id}.xml')      #Assuming xml annotations
+
+    #Parse the XML annotation file using xml.etree.ElementTree
+    #This is just a guidance code, we need to replace the code below with your XML parsing logic
+
+    tree = ET.parse(annotation_path)
+    root = tree.getroot()
+
+    for object_elem in root.findall('object'):
+        class_name = object_elem.find('name').text
+        bbox_elem = object_elem.find('bndbox')
+        xmin = int(bbox_elem.find('xmin').text)
+        ymin = int(bbox_elem.find('ymin').text)
+        xmax = int(bbox_elem.find('xmax').text)
+        ymax = int(bbox_elem.find('ymax').text)
+        bbox = [xmin, ymin, xmax, ymax]
+
+        annotation = {'class': class_name, 'bbox': bbox}
+        annotations.append(annotation)
+
+    return annotations
 def count_classes(class_names_path): 
     #Load the class names
     with open(class_names_path, 'r') as file:
