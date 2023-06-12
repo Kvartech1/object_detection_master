@@ -12,6 +12,7 @@ from util import *
 config_file = 'cfg/yolov3.cfg'                 #Configuration file path
 pretrained_weights = 'yolov3.weights'          #Path to pretrained weights
 dataset_path = ''                              #Path to custom dataset
+annotations_path = ''                          #Path to annotations
 class_names_path = ''                          #Path to class names file
 num_classes = count_classes(class_names_path)  #Setting the number of classes in our custom dataset
 inp_dim = 416                                  #Setting desired input image size
@@ -36,7 +37,7 @@ criterion = nn.MSELoss()
 Create the dataloader for the custom datset. We will need to implement your own custom dataset class.
 The dataset class should handle loading images and annotations and apply necessary transformations to the data
 '''
-custom_dataset = CustomDataset(dataset_path)
+custom_dataset = CustomDataset(dataset_path, annotations_path)
 data_loader = DataLoader(custom_dataset, batch_size=batch_size, shuffle = True, num_workers=4)
 
 #Setting the model to training mode
