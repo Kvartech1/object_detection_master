@@ -14,6 +14,7 @@ import pickle as pkl
 import pandas as pd
 import random
 from collections import defaultdict
+from collections import Counter
 
 
 class_name = "bottle"
@@ -84,18 +85,62 @@ def write(x, results):
     t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1, 1)[0]
     c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
     cv2.rectangle(img, c1, c2, color, -1)
+
+    #Extracting the region of interest(ROI) for the detected object
+    roi = img[c1[1]:c2[1], c1[0]:c2[0]]
+
+    #Convert the ROI to HSV color space
+    hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+
+    #Calculate the dominant color in ROI
+    pixels = hsv_roi.reshape(-1,3)
+    color_counts = Counter(tuple(pixels) for pixel in pixels)
+    dominant_color = color_counts.most_common(1)[0][0]
+
+    #Get the object class name
+    class_name = classes[cls]
+
+    #Set the color based on the object class
+    class_colors = {
+        "bottle": (0,0,255), #Red colour for bottles
+        "person": (0,255,0)  #Green color for people
+    }
+    color = class_colors.get(class_name, (0,0,0))
+
+    #Draw the label with the object class and dominant color
+    label = f"{class_name}  ({dominant_color})"
     cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 1, [225, 255, 255], 1)
-    return img
+
+    #Update the color count with the dominant color of the detected object
+    color_counts[dominant_color] +=1
+    #return img
 
 
+def get_test_input(input_dim, CUDA):
+    img = cv2.imread("dog-cycle-car.png")
+    img = cv2.resize(img, (input_dim, input_dim))
+    img_ = img[:, :, ::-1].transpose((2, 0, 1)).copy()
+    img_ = torch.from_numpy(img_).float().div(255.0).unsqueeze(0)
+    if CUDA:
+        img_ = img_.cuda()
+
+    return img_
+
+
+
+
+#ip_camera_url = "http://192.168.63.153:8080/video"
 # Detection phase
-cap = cv2.VideoCapture(0)  # for webcam
+cap = cv2.VideoCapture(0)  # for usb webcam
 
-assert cap.isOpened(), 'Cannot capture source'
+if not cap.isOpened():
+    print("Failed to open IP camera stream")
+    exit()
 
 frames = 0
 start = time.time()
 
+color_count = Counter()
 colors = pkl.load(open("pallete", "rb"))
 
 object_count = 0
@@ -168,8 +213,8 @@ while cap.isOpened():
                 bbox = [int(x) for x in bbox]
                 objects_in_frame[tuple(bbox)] = True                            #The coordinates of the bounding box are stored as a tuple in the dictionary
                 
-        print("OBJECT IN FRAME:"+str(len(objects_in_frame)))
-        print("OBJECT IN PREV FRAME:"+str(objects_in_frame_prev))
+        #print("OBJECT IN FRAME:"+str(len(objects_in_frame)))
+        #print("OBJECT IN PREV FRAME:"+str(objects_in_frame_prev))
         
         if objects_in_frame_prev == len(objects_in_frame):
             check = False
