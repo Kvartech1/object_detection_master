@@ -19,14 +19,6 @@ from collections import Counter
 
 class_name = "bottle"
 
-#Defining color mappings to color names for the color detection
-color_names = {
-    (0, 0, 0): "Black",
-    (255, 255, 255): "White",
-    (255,0,0): "Red",
-    (0,255,0): "Green",
-    (0,0,255): "Blue",
-}
 
 def arg_parse():
     """
@@ -93,36 +85,6 @@ def write(x, results):
     t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1, 1)[0]
     c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
     cv2.rectangle(img, c1, c2, color, -1)
-
-    # Extracting the region of interest (ROI) for the detected object
-    roi = img[c1[1]:c2[1], c1[0]:c2[0]]
-
-    # Convert the ROI to HSV color space
-    hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-
-    # Calculate the dominant color in ROI
-    pixels = hsv_roi.reshape(-1, 3)
-    color_counts = Counter(tuple(pixel) for pixel in pixels)  # Convert pixel to tuple
-
-    # Get the object class name
-    class_name = classes[cls]
-
-    # Set the color based on the object class
-    class_colors = {
-        "bottle": (0, 0, 255),  # Red colour for bottles
-        "person": (0, 255, 0)  # Green color for people
-    }
-    color = class_colors.get(class_name, (0, 0, 0))
-
-    # Get the most common color in ROI
-    dominant_color = color_counts.most_common(1)[0][0]
-
-    # Convert the dominant color to BGR or any desired color space
-    bgr_dominant_color = cv2.cvtColor(np.uint8([[dominant_color]]), cv2.COLOR_HSV2BGR)[0][0]
-
-    # Draw the label with the object class and dominant color
-    label = f"{class_name}  (BGR: {bgr_dominant_color})"
-    cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 1, [225, 255, 255], 1)
 
     return img
 
@@ -253,18 +215,6 @@ while cap.isOpened():
         sum_2 = sum_total 
         temp_p= sum_2
         #main_cnt = len(objects_to_remove) + len(total_object_count.get(class_name, {}))
-        
-        #Print the dominant color of the required object
-        if len(new_objects)>0:
-            roi = frame2[new_objects[0][1]:new_objects[0][3], new_objects[0][0]:new_objects[0][2]]
-            hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-            pixels = hsv_roi.reshape(-1,3)
-            color_counts = Counter(tuple(pixel) for pixel in pixels)
-            dominant_color = color_counts.most_common(1)[0][0]
-
-            dominant_color_name = color_names.get(dominant_color, "Unknown")
-            print("Dominant color of the object:", dominant_color_name)
-        
         list(map(lambda x: write(x, frame2), output))
 
         cv2.putText(frame2, f"Total {class_name} objects until now: {temp}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1,
